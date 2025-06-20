@@ -1,22 +1,12 @@
-# Phaser Psychophysics Pong
+# Psychophysics Pong
 
-A browser-based Pong game for psychophysical experiments, built with Phaser. The ball's contrast adapts using a staircase method to measure sensory thresholds.
+==-- Work in progress! --==
 
-## Features
-- Classic Pong gameplay
-- Ball contrast decreases on hit, increases on miss (staircase method)
-- Keyboard controls for paddle
-- Displays current contrast level
+A browser-based Pong game for psychophysical experiments, built with Phaser and jsQUEST. The ball's luminance contrast adapts using a QUEST staircase approach to measure sensory thresholds.
+
 
 ## Getting Started
 
-1. Open `index.html` in your browser (no server required for basic use).
-2. Play the game and observe the contrast adaptation.
+1. Open `index.html` in your browser.
+2. Play the game!.
 
-## Deployment
-
-- Host the folder on GitHub Pages or any static web server for easy sharing.
-
-## To Do
-- Add more psychophysical tasks
-- Collect and export threshold data
