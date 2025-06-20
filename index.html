@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phaser Psychophysics Pong</title>
+    <!-- Retro Pong font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+    <style>
+        .font-preload { font-family: 'VT323', monospace; position: absolute; left: -9999px; visibility: hidden; }
+        body {
+            background: #111;
+            color: #0f0;
+            font-family: 'Press Start 2P', monospace;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            color: #fff;
+            font-size: 2.2em;
+            margin-top: 32px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px #0f0, 0 0 2px #fff;
+        }
+        h2 {
+            color: #0f0;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            margin-top: 0;
+            text-shadow: 0 0 4px #fff;
+        }
+        #game-container {
+            margin: 32px auto 0 auto;
+            width: 800px;
+            height: 600px;
+            border: 6px solid #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 32px #0f0, 0 0 8px #fff;
+            background: #222;
+            position: relative;
+        }
+        .instructions {
+            color: #fff;
+            font-size: 0.9em;
+            margin-top: 12px;
+            margin-bottom: 0;
+            text-shadow: 0 0 2px #0f0;
+        }
+        @media (max-width: 900px) {
+            #game-container {
+                width: 98vw;
+                height: 70vw;
+                max-width: 800px;
+                max-height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <span class="font-preload">.</span>
+    <h1>PSYCHOPHYSICS PONG</h1>
+    <h2>Retro Adaptive Threshold Game</h2>
+    <div id="game-container"></div>
+    <div class="instructions">
+        <p><br>Use &larr; and &rarr; to move the paddle.<br>
+        Hit the ball to keep playing. The ball gets harder to see as you succeed!<br>
+        Miss the ball to make it easier again.<br>
+        Powered by QUEST adaptive psychophysics.</p>
+    </div>
+    <script src="numeric.js"></script>
+    <script src="jsQUEST.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
