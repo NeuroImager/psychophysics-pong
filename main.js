@@ -53,12 +53,37 @@ function getNextContrast() {
     return Math.pow(10, currentLogContrast);
 }
 
+// Generate a proper Gaussian ball texture
+function generateGaussianTexture(scene, key, size, contrast) {
+    // Create a canvas texture
+    const canvas = scene.textures.createCanvas(key, size, size);
+    const ctx = canvas.getContext();
+    const cx = size / 2;
+    const cy = size / 2;
+    const sigma = size / 6; // Controls spread; adjust as needed
+    const imageData = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const dx = x - cx + 0.5;
+            const dy = y - cy + 0.5;
+            const r2 = dx * dx + dy * dy;
+            // 2D Gaussian
+            const gauss = Math.exp(-r2 / (2 * sigma * sigma));
+            const idx = (y * size + x) * 4;
+            imageData.data[idx + 0] = 255; // R (white)
+            imageData.data[idx + 1] = 255; // G (white)
+            imageData.data[idx + 2] = 255; // B (white)
+            imageData.data[idx + 3] = Math.round(255 * gauss * contrast); // Alpha
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    canvas.refresh(); // Ensure Phaser updates the texture
+}
+
 function preload() {
-    // Generate Gaussian ball texture
+    // Generate proper Gaussian ball texture for instructions screen
     this.textures.remove('ballTex');
-    let gfx = this.make.graphics({x: 0, y: 0, add: false});
-    drawGaussianBall(gfx, getBallColor());
-    gfx.generateTexture('ballTex', 40, 40);
+    generateGaussianTexture(this, 'ballTex', 40, ballContrast);
 }
 
 function create() {
@@ -75,7 +100,7 @@ function create() {
     ball.setCollideWorldBounds(true);
     ball.body.onWorldBounds = true;
     ball.body.setCircle(20, 0, 0); // No offset
-    ball.setVisible(false);
+    ball.setVisible(false); // Hide ball during instructions and countdown
     paddle.visible = false;
 
     // Start text
@@ -88,7 +113,6 @@ function create() {
         strokeThickness: 2,
         shadow: { offsetX: 2, offsetY: 2, color: '#0f0', blur: 2, fill: true }
     }).setOrigin(0.5);
-    //startText.setScale(3.0);
 
     // Countdown text (hidden initially)
     countdownText = this.add.text(400, 300, '', {
@@ -133,13 +157,16 @@ function create() {
                 updateBallAppearance(this);
                 playBip(220);
                 ballReady = false;
-                ball.setVelocity(0, 0);
-                ball.setPosition(400, 300);
+                ball.setVelocity(0, 0); // Stop the ball
+                ball.setPosition(400, 300); // Center the ball
+                ball.body.enable = false; // Freeze physics
                 showRingCue();
+                ball.setVisible(true); // Ensure ball is visible in the ring
                 this.time.delayedCall(1000, () => {
                     ringGraphics.clear();
                     ringGraphics.visible = false;
-                    serveBall(this);
+                    ball.body.enable = true; // Unfreeze physics
+                    serveBall(this, true); // Set velocity
                     ballReady = true;
                 });
             }
@@ -197,47 +224,36 @@ function getBallColor() {
     return (lum << 16) | (lum << 8) | lum;
 }
 
-function drawGaussianBall(gfx, color) {
-    gfx.clear();
-    // Draw a radial gradient (approximate Gaussian)
-    let cx = 20, cy = 20, r = 20;
-    for (let i = 0; i < 20; i++) {
-        let alpha = 0.15 * (1 - i / 20);
-        gfx.fillStyle(color, alpha);
-        gfx.fillCircle(cx, cy, r - i);
-    }
-}
-
 function updateBallAppearance(scene) {
-    // Get next contrast from QUEST (and store log contrast for update)
+    // Get next contrast from QUEST
     ballContrast = getNextContrast();
     // Redraw ball with new contrast
     scene.textures.remove('ballTex');
-    let gfx = scene.make.graphics({x: 0, y: 0, add: false});
-    drawGaussianBall(gfx, getBallColor());
-    gfx.generateTexture('ballTex', 40, 40);
+    generateGaussianTexture(scene, 'ballTex', 40, ballContrast);
     ball.setTexture('ballTex');
 }
 
-function serveBall(scene) {
+function serveBall(scene, onlySetVelocity = false) {
     if (!gameStarted) return;
-    ballContrast = getNextContrast();
-    updateBallAppearance(scene);
-    ball.setPosition(400, 300);
+    if (!onlySetVelocity) {
+        ballContrast = getNextContrast();
+        updateBallAppearance(scene);
+        ball.setPosition(400, 300);
+        ball.setVisible(true);
+    }
     const baseVx = 260;
     const baseVy = -200;
     const speedFactor = 1.5;
     let vx = (Phaser.Math.Between(0, 1) === 0 ? 1 : -1) * baseVx * speedFactor;
     let vy = baseVy * speedFactor;
     ball.setVelocity(vx, vy);
-    ball.setVisible(true);
     ballReady = true;
 }
 
 function showRingCue() {
     ringGraphics.clear();
-    ringGraphics.lineStyle(3, 0x000000, 1);
-    ringGraphics.strokeCircle(ball.x, ball.y, 24);
+    ringGraphics.lineStyle(1, 0x000000, 1);
+    ringGraphics.strokeCircle(400, 300, 24);
     ringGraphics.visible = true;
 }
 
