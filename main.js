@@ -25,6 +25,9 @@ let ballContrast = 1.0; // 1.0 = max contrast, 0 = min
 let scoreText;
 let ringTimer = 0;
 let ballReady = true;
+let trialCount = 0; // Track number of trials
+const MAX_TRIALS = 20; // Maximum number of trials
+let gameCompleted = false; // Track if game is finished
 
 // --- QUEST integration using jsQUEST ---
 let quest;
@@ -142,17 +145,23 @@ function create() {
 
     // Collisions
     this.physics.add.collider(ball, paddle, () => {
-        if (!ballReady) return;
+        if (!ballReady || gameCompleted) return;
+        trialCount++;
         quest = jsQUEST.QuestUpdate(quest, currentLogContrast, 1);
         updateBallAppearance(this);
         playBip(880);
         ball.setVelocityY(-Math.abs(ball.body.velocity.y));
+        
+        if (trialCount >= MAX_TRIALS) {
+            endGame(this);
+        }
     });
 
     // Listen for world bounds collision
     this.physics.world.on('worldbounds', (body, up, down, left, right) => {
         if (body.gameObject === ball && down) {
-            if (ballReady) {
+            if (ballReady && !gameCompleted) {
+                trialCount++;
                 quest = jsQUEST.QuestUpdate(quest, currentLogContrast, 0);
                 updateBallAppearance(this);
                 playBip(220);
@@ -163,18 +172,24 @@ function create() {
                 showRingCue();
                 ball.setVisible(true); // Ensure ball is visible in the ring
                 this.time.delayedCall(1000, () => {
-                    ringGraphics.clear();
-                    ringGraphics.visible = false;
-                    ball.body.enable = true; // Unfreeze physics
-                    serveBall(this, true); // Set velocity
-                    ballReady = true;
+                    if (!gameCompleted) {
+                        ringGraphics.clear();
+                        ringGraphics.visible = false;
+                        ball.body.enable = true; // Unfreeze physics
+                        serveBall(this, true); // Set velocity
+                        ballReady = true;
+                    }
                 });
+                
+                if (trialCount >= MAX_TRIALS) {
+                    endGame(this);
+                }
             }
         }
     }, this);
 
     // Score/contrast display
-    scoreText = this.add.text(600, 20, 'Contrast: ' + (typeof ballContrast === 'number' ? ballContrast.toFixed(2) : 'N/A'), { fontSize: '24px', fill: '#fff' });
+    scoreText = this.add.text(20, 20, 'Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'), { fontSize: '12px', fill: '#fff' });
     scoreText.setVisible(false);
 }
 
@@ -206,7 +221,7 @@ function startCountdown(scene) {
 }
 
 function update(time, delta) {
-    if (!gameStarted) return;
+    if (!gameStarted || gameCompleted) return;
     if (cursors.left.isDown) {
         paddle.x -= 7;
     } else if (cursors.right.isDown) {
@@ -214,7 +229,7 @@ function update(time, delta) {
     }
     paddle.x = Phaser.Math.Clamp(paddle.x, 60, 800 - 60);
     paddle.body.updateFromGameObject();
-    scoreText.setText('Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'));
+    scoreText.setText('Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'));
 }
 
 function getBallColor() {
@@ -268,5 +283,27 @@ function playBip(frequency) {
     o.connect(g).connect(ctx.destination);
     o.start();
     o.stop(ctx.currentTime + 0.08);
+}
+
+function endGame(scene) {
+    gameCompleted = true;
+    ball.setVisible(false);
+    paddle.visible = false;
+    ringGraphics.visible = false;
+    
+    // Show completion message
+    const finalThreshold = Math.pow(10, jsQUEST.QuestMean(quest)).toFixed(5);
+    const threshSD = jsQUEST.QuestSd(quest).toFixed(5);
+        const completionText = scene.add.text(400, 300, 'Game Complete!\n\nFinal threshold estimate:\n' + finalThreshold + ' ± ' + threshSD, {
+        fontFamily: 'VT323',
+        fontSize: '32px',
+        color: '#fff',
+        align: 'center',
+        stroke: '#0f0',
+        strokeThickness: 2,
+        shadow: { offsetX: 2, offsetY: 2, color: '#0f0', blur: 2, fill: true }
+    }).setOrigin(0.5);
+    
+    scoreText.setVisible(false);
 }
 
