@@ -142,16 +142,7 @@
                 thresholdSD = data.thresholdSD || 'N/A';
             } catch (error) {
                 console.error('Error parsing URL data:', error);
-                // Fallback to localStorage if URL parsing fails
-                trialData = JSON.parse(localStorage.getItem('psychophysicsTrialData') || '[]');
-                finalThreshold = localStorage.getItem('psychophysicsFinalThreshold') || 'N/A';
-                thresholdSD = localStorage.getItem('psychophysicsThresholdSD') || 'N/A';
             }
-        } else {
-            // Fallback to localStorage if no URL data
-            trialData = JSON.parse(localStorage.getItem('psychophysicsTrialData') || '[]');
-            finalThreshold = localStorage.getItem('psychophysicsFinalThreshold') || 'N/A';
-            thresholdSD = localStorage.getItem('psychophysicsThresholdSD') || 'N/A';
         }
         
         if (trialData.length === 0) {
