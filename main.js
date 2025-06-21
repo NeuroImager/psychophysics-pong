@@ -28,6 +28,7 @@ let ballReady = true;
 let trialCount = 0; // Track number of trials
 const MAX_TRIALS = 20; // Maximum number of trials
 let gameCompleted = false; // Track if game is finished
+let trialData = []; // Store trial data for results page
 
 // --- QUEST integration using jsQUEST ---
 let quest;
@@ -148,6 +149,12 @@ function create() {
         if (!ballReady || gameCompleted) return;
         trialCount++;
         quest = jsQUEST.QuestUpdate(quest, currentLogContrast, 1);
+        // Store trial data
+        trialData.push({
+            trial: trialCount,
+            contrast: ballContrast,
+            response: 1 // Hit
+        });
         updateBallAppearance(this);
         playBip(880);
         ball.setVelocityY(-Math.abs(ball.body.velocity.y));
@@ -163,6 +170,12 @@ function create() {
             if (ballReady && !gameCompleted) {
                 trialCount++;
                 quest = jsQUEST.QuestUpdate(quest, currentLogContrast, 0);
+                // Store trial data
+                trialData.push({
+                    trial: trialCount,
+                    contrast: ballContrast,
+                    response: 0 // Miss
+                });
                 updateBallAppearance(this);
                 playBip(220);
                 ballReady = false;
@@ -291,10 +304,24 @@ function endGame(scene) {
     paddle.visible = false;
     ringGraphics.visible = false;
     
-    // Show completion message
     const finalThreshold = Math.pow(10, jsQUEST.QuestMean(quest)).toFixed(5);
     const threshSD = jsQUEST.QuestSd(quest).toFixed(5);
-        const completionText = scene.add.text(400, 300, 'Game Complete!\n\nFinal threshold estimate:\n' + finalThreshold + ' ± ' + threshSD, {
+    const hits = trialData.filter(trial => trial.response === 1).length;
+    const hitRate = ((hits / trialData.length) * 100).toFixed(1);
+    
+    // Prepare data for Google Forms
+    const dataToSend = {
+        finalThreshold: finalThreshold,
+        thresholdSD: threshSD,
+        totalTrials: trialData.length,
+        hitRate: hitRate,
+        trialData: trialData
+    };
+    
+    // Send data to Google Forms
+    sendDataToGoogleForms(dataToSend);
+    
+    const completionText = scene.add.text(400, 300, 'Game Complete!\n\nFinal threshold estimate:\n' + finalThreshold + ' ± ' + threshSD, {
         fontFamily: 'VT323',
         fontSize: '32px',
         color: '#fff',
@@ -304,6 +331,64 @@ function endGame(scene) {
         shadow: { offsetX: 2, offsetY: 2, color: '#0f0', blur: 2, fill: true }
     }).setOrigin(0.5);
     
+    // Add button to view results
+    const resultsButton = scene.add.text(400, 400, 'View Results', {
+        fontFamily: 'VT323',
+        fontSize: '24px',
+        color: '#0f0',
+        align: 'center',
+        stroke: '#fff',
+        strokeThickness: 2,
+        backgroundColor: '#333',
+        padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setInteractive();
+    
+    resultsButton.on('pointerdown', () => {
+        // Pass data via URL parameters
+        const dataParam = encodeURIComponent(JSON.stringify(dataToSend));
+        window.open('results.html?data=' + dataParam, '_blank');
+    });
+    
     scoreText.setVisible(false);
+}
+
+// Function to send data to Google Forms
+function sendDataToGoogleForms(data) {
+    // Use the form submission URL (not the viewform URL)
+    const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSemIGiEwVexGMI-77KgCMupXNKlPdr3evuPOcApQe93Fqjv8Q/formResponse';
+    
+    // Replace these with your actual Google Form field IDs (after removing timestamp field)
+    const FIELD_IDS = {
+        finalThreshold: 'entry.1091417814', // Replace with actual ID
+        thresholdSD: 'entry.1415284933',    // Replace with actual ID
+        totalTrials: 'entry.1267844442',    // Replace with actual ID
+        hitRate: 'entry.1230961981',        // Replace with actual ID
+        trialData: 'entry.1381897488'       // Replace with actual ID
+        // Removed timestamp - Google Forms adds this automatically
+    };
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append(FIELD_IDS.finalThreshold, data.finalThreshold);
+    formData.append(FIELD_IDS.thresholdSD, data.thresholdSD);
+    formData.append(FIELD_IDS.totalTrials, data.totalTrials.toString());
+    formData.append(FIELD_IDS.hitRate, data.hitRate + '%');
+    formData.append(FIELD_IDS.trialData, JSON.stringify(data.trialData));
+    // Removed timestamp - Google Forms adds this automatically
+    
+    // Submit to Google Forms
+    fetch(GOOGLE_FORM_URL, {
+        method: 'POST',
+        body: formData,
+        mode: 'no-cors' // This is important for Google Forms
+    })
+    .then(response => {
+        console.log('Data sent to Google Forms successfully');
+    })
+    .catch(error => {
+        console.error('Error sending data to Google Forms:', error);
+        // No fallback needed - if Google Forms fails, we lose the data
+        // The results page still works via URL parameters
+    });
 }
 

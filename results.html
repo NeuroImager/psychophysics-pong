@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychophysics Results</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #111;
+            color: #0f0;
+            font-family: 'VT323', monospace;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #fff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #0f0;
+        }
+        h2 {
+            color: #0f0;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .results-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #222;
+            border: 3px solid #0f0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px #0f0;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+            background: #333;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .summary-item {
+            background: #333;
+            border: 2px solid #0f0;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        .summary-item h3 {
+            color: #fff;
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+        }
+        .summary-item p {
+            color: #0f0;
+            font-size: 1.5em;
+            margin: 0;
+            font-weight: bold;
+        }
+        .back-button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 1.2em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background: #fff;
+            color: #000;
+        }
+        .no-data {
+            color: #f00;
+            font-size: 1.5em;
+            margin: 50px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>PSYCHOPHYSICS RESULTS</h1>
+    <h2>Staircase Analysis</h2>
+    
+    <div class="results-container">
+        <div id="no-data" class="no-data" style="display: none;">
+            No trial data found. Please complete a game first.
+        </div>
+        
+        <div id="results-content" style="display: none;">
+            <div class="summary">
+                <div class="summary-item">
+                    <h3>Final Threshold</h3>
+                    <p id="final-threshold">-</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Threshold SD</h3>
+                    <p id="threshold-sd">-</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Total Trials</h3>
+                    <p id="total-trials">-</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Hit Rate</h3>
+                    <p id="hit-rate">-</p>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="staircaseChart"></canvas>
+            </div>
+        </div>
+        
+        <button class="back-button" onclick="window.close()">Close Results</button>
+    </div>
+
+    <script>
+        // Get data from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const dataParam = urlParams.get('data');
+        
+        let trialData = [];
+        let finalThreshold = 'N/A';
+        let thresholdSD = 'N/A';
+        
+        if (dataParam) {
+            try {
+                const data = JSON.parse(decodeURIComponent(dataParam));
+                trialData = data.trialData || [];
+                finalThreshold = data.finalThreshold || 'N/A';
+                thresholdSD = data.thresholdSD || 'N/A';
+            } catch (error) {
+                console.error('Error parsing URL data:', error);
+                // Fallback to localStorage if URL parsing fails
+                trialData = JSON.parse(localStorage.getItem('psychophysicsTrialData') || '[]');
+                finalThreshold = localStorage.getItem('psychophysicsFinalThreshold') || 'N/A';
+                thresholdSD = localStorage.getItem('psychophysicsThresholdSD') || 'N/A';
+            }
+        } else {
+            // Fallback to localStorage if no URL data
+            trialData = JSON.parse(localStorage.getItem('psychophysicsTrialData') || '[]');
+            finalThreshold = localStorage.getItem('psychophysicsFinalThreshold') || 'N/A';
+            thresholdSD = localStorage.getItem('psychophysicsThresholdSD') || 'N/A';
+        }
+        
+        if (trialData.length === 0) {
+            document.getElementById('no-data').style.display = 'block';
+        } else {
+            document.getElementById('results-content').style.display = 'block';
+            
+            // Update summary
+            document.getElementById('final-threshold').textContent = finalThreshold;
+            document.getElementById('threshold-sd').textContent = thresholdSD;
+            document.getElementById('total-trials').textContent = trialData.length;
+            
+            const hits = trialData.filter(trial => trial.response === 1).length;
+            const hitRate = ((hits / trialData.length) * 100).toFixed(1);
+            document.getElementById('hit-rate').textContent = hitRate + '%';
+            
+            // Create staircase chart
+            const ctx = document.getElementById('staircaseChart').getContext('2d');
+            
+            const chartData = {
+                labels: trialData.map(trial => trial.trial),
+                datasets: [{
+                    label: 'Contrast Level',
+                    data: trialData.map(trial => trial.contrast),
+                    borderColor: '#0f0',
+                    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: trialData.map(trial => trial.response === 1 ? '#0f0' : '#f00'),
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    fill: false,
+                    tension: 0.1
+                }]
+            };
+            
+            const config = {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Staircase: Contrast Level vs Trial Number',
+                            color: '#fff',
+                            font: {
+                                family: 'VT323',
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Trial ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    const trial = trialData[context.dataIndex];
+                                    return 'Contrast: ' + trial.contrast.toFixed(4) + 
+                                           ' | Response: ' + (trial.response === 1 ? 'Hit' : 'Miss');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Trial Number',
+                                color: '#0f0',
+                                font: {
+                                    family: 'VT323',
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                color: '#0f0',
+                                font: {
+                                    family: 'VT323',
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.2)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Contrast Level',
+                                color: '#0f0',
+                                font: {
+                                    family: 'VT323',
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                color: '#0f0',
+                                font: {
+                                    family: 'VT323',
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.2)'
+                            }
+                        }
+                    }
+                }
+            };
+            
+            new Chart(ctx, config);
+        }
+    </script>
+</body>
+</html> 
