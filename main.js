@@ -1,3 +1,14 @@
+// ============================================================================
+// PSYCHOPHYSICS PONG - VISUAL CONTRAST THRESHOLD MEASUREMENT
+// ============================================================================
+// This game uses a QUEST adaptive staircase method to measure luminance contrast
+// thresholds. Players hit a ball with varying contrast levels using a paddle.
+// The QUEST algorithm adaptively adjusts contrast based on player performance.
+
+// ============================================================================
+//  GAME CONFIGURATION
+// ============================================================================
+// Phaser.js game configuration object
 const config = {
     type: Phaser.AUTO,
     width: 800,
@@ -17,8 +28,10 @@ const config = {
     }
 };
 
-const game = new Phaser.Game(config);
-
+// ============================================================================
+//  GLOBAL VARIABLES
+// ============================================================================
+// Game objects
 let paddle, ball, ringGraphics;
 let cursors;
 let ballContrast = 1.0; // 1.0 = max contrast, 0 = min
@@ -30,13 +43,17 @@ const MAX_TRIALS = 20; // Maximum number of trials
 let gameCompleted = false; // Track if game is finished
 let trialData = []; // Store trial data for results page
 
-// --- QUEST integration using jsQUEST ---
+// QUEST algorithm variables
 let quest;
 let currentLogContrast = 0;
 let gameStarted = false;
 let countdownText;
 let startText;
 
+// ============================================================================
+//  QUEST ALGORITHM FUNCTIONS
+// ============================================================================
+// Initialize the QUEST adaptive staircase algorithm
 function setupQuest() {
     // Use log10 units for tGuess and tGuessSd
     const tGuess = Math.log10(0.1); // -1 (expected threshold)
@@ -50,6 +67,7 @@ function setupQuest() {
     quest = jsQUEST.QuestCreate(tGuess, tGuessSd, pThreshold, beta, delta, gamma, grain, range);
 }
 
+// Get the next contrast level recommended by QUEST
 function getNextContrast() {
     // Use QuestQuantile to get the recommended stimulus (log units)
     currentLogContrast = jsQUEST.QuestQuantile(quest);
@@ -57,7 +75,10 @@ function getNextContrast() {
     return Math.pow(10, currentLogContrast);
 }
 
-// Generate a proper Gaussian ball texture
+// ============================================================================
+//  VISUAL STIMULUS GENERATION
+// ============================================================================
+// Generate a proper Gaussian ball texture with specified contrast
 function generateGaussianTexture(scene, key, size, contrast) {
     // Create a canvas texture
     const canvas = scene.textures.createCanvas(key, size, size);
@@ -84,12 +105,17 @@ function generateGaussianTexture(scene, key, size, contrast) {
     canvas.refresh(); // Ensure Phaser updates the texture
 }
 
+// ============================================================================
+//  PHASER LIFECYCLE FUNCTIONS
+// ============================================================================
+// Called once when the scene starts - load assets
 function preload() {
     // Generate proper Gaussian ball texture for instructions screen
     this.textures.remove('ballTex');
     generateGaussianTexture(this, 'ballTex', 40, ballContrast);
 }
 
+// Called once when the scene starts - create game objects
 function create() {
     setupQuest();
     // Paddle (bottom, horizontal)
@@ -206,6 +232,23 @@ function create() {
     scoreText.setVisible(false);
 }
 
+// Called every frame - handle game logic
+function update(time, delta) {
+    if (!gameStarted || gameCompleted) return;
+    if (cursors.left.isDown) {
+        paddle.x -= 7;
+    } else if (cursors.right.isDown) {
+        paddle.x += 7;
+    }
+    paddle.x = Phaser.Math.Clamp(paddle.x, 60, 800 - 60);
+    paddle.body.updateFromGameObject();
+    scoreText.setText('Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'));
+}
+
+// ============================================================================
+//  GAME FLOW FUNCTIONS
+// ============================================================================
+// Start the countdown sequence before game begins
 function startCountdown(scene) {
     let count = 3;
     countdownText.setText(count);
@@ -233,34 +276,7 @@ function startCountdown(scene) {
     });
 }
 
-function update(time, delta) {
-    if (!gameStarted || gameCompleted) return;
-    if (cursors.left.isDown) {
-        paddle.x -= 7;
-    } else if (cursors.right.isDown) {
-        paddle.x += 7;
-    }
-    paddle.x = Phaser.Math.Clamp(paddle.x, 60, 800 - 60);
-    paddle.body.updateFromGameObject();
-    scoreText.setText('Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'));
-}
-
-function getBallColor() {
-    // Map contrast to luminance: 1.0 = white, 0 = same as background (mid-gray)
-    const bg = 0x88; // 136
-    const lum = Math.round(bg + (0xff - bg) * ballContrast);
-    return (lum << 16) | (lum << 8) | lum;
-}
-
-function updateBallAppearance(scene) {
-    // Get next contrast from QUEST
-    ballContrast = getNextContrast();
-    // Redraw ball with new contrast
-    scene.textures.remove('ballTex');
-    generateGaussianTexture(scene, 'ballTex', 40, ballContrast);
-    ball.setTexture('ballTex');
-}
-
+// Serve the ball with new contrast level
 function serveBall(scene, onlySetVelocity = false) {
     if (!gameStarted) return;
     if (!onlySetVelocity) {
@@ -278,6 +294,17 @@ function serveBall(scene, onlySetVelocity = false) {
     ballReady = true;
 }
 
+// Update ball appearance with new contrast level
+function updateBallAppearance(scene) {
+    // Get next contrast from QUEST
+    ballContrast = getNextContrast();
+    // Redraw ball with new contrast
+    scene.textures.remove('ballTex');
+    generateGaussianTexture(scene, 'ballTex', 40, ballContrast);
+    ball.setTexture('ballTex');
+}
+
+// Show visual cue ring around ball position
 function showRingCue() {
     ringGraphics.clear();
     ringGraphics.lineStyle(1, 0x000000, 1);
@@ -285,6 +312,10 @@ function showRingCue() {
     ringGraphics.visible = true;
 }
 
+// ============================================================================
+//  UTILITY FUNCTIONS
+// ============================================================================
+// Play audio feedback (high frequency for hits, low for misses)
 function playBip(frequency) {
     // Use Web Audio API for simple beep
     const ctx = window.audioCtx || (window.audioCtx = new (window.AudioContext || window.webkitAudioContext)());
@@ -298,6 +329,10 @@ function playBip(frequency) {
     o.stop(ctx.currentTime + 0.08);
 }
 
+// ============================================================================
+//  GAME END & DATA HANDLING
+// ============================================================================
+// Handle game completion and results display
 function endGame(scene) {
     gameCompleted = true;
     ball.setVisible(false);
@@ -352,7 +387,7 @@ function endGame(scene) {
     scoreText.setVisible(false);
 }
 
-// Function to send data to Google Forms
+// Send experimental data to Google Forms for data collection
 function sendDataToGoogleForms(data) {
     // Use the form submission URL (not the viewform URL)
     const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSemIGiEwVexGMI-77KgCMupXNKlPdr3evuPOcApQe93Fqjv8Q/formResponse';
@@ -391,4 +426,10 @@ function sendDataToGoogleForms(data) {
         // The results page still works via URL parameters
     });
 }
+
+// ============================================================================
+//  GAME INITIALIZATION
+// ============================================================================
+// Start the Phaser game
+const game = new Phaser.Game(config);
 
