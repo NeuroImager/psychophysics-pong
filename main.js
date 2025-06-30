@@ -105,6 +105,48 @@ function generateGaussianTexture(scene, key, size, contrast) {
     canvas.refresh(); // Ensure Phaser updates the texture
 }
 
+// Generate a Gabor patch texture with specified contrast and spatial frequency
+function generateGaborTexture(scene, key, size, contrast, spatialFreq, phase = 0, orientation = 0) {
+    // spatialFreq: cycles per texture (e.g., 4 = 4 cycles across the texture)
+    // phase: phase offset in radians
+    // orientation: orientation in radians (0 = vertical grating)
+    const canvas = scene.textures.createCanvas(key, size, size);
+    const ctx = canvas.getContext();
+    const cx = size / 2;
+    const cy = size / 2;
+    const sigma = size / 6; // Controls Gaussian spread
+    const imageData = ctx.createImageData(size, size);
+    // Precompute orientation
+    const cosOrient = Math.cos(orientation);
+    const sinOrient = Math.sin(orientation);
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            // Centered coordinates
+            const dx = x - cx + 0.5;
+            const dy = y - cy + 0.5;
+            // Gaussian envelope
+            const r2 = dx * dx + dy * dy;
+            const gauss = Math.exp(-r2 / (2 * sigma * sigma));
+            // Gabor grating: sinusoidal modulated by Gaussian
+            // Project (dx, dy) onto orientation
+            const xPrime = dx * cosOrient + dy * sinOrient;
+            // cycles per pixel = spatialFreq / size
+            const cyclesPerPixel = spatialFreq / size;
+            const grating = Math.cos(2 * Math.PI * cyclesPerPixel * xPrime + phase);
+            // Gabor value: mean gray (128) +/- contrast*amplitude*gauss
+            const amplitude = 127 * contrast * gauss;
+            const value = 128 + amplitude * grating;
+            const idx = (y * size + x) * 4;
+            imageData.data[idx + 0] = value; // R
+            imageData.data[idx + 1] = value; // G
+            imageData.data[idx + 2] = value; // B
+            imageData.data[idx + 3] = Math.round(255 * gauss); // Alpha (Gaussian window)
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    canvas.refresh(); // Ensure Phaser updates the texture
+}
+
 // ============================================================================
 //  PHASER LIFECYCLE FUNCTIONS
 // ============================================================================
@@ -344,13 +386,19 @@ function endGame(scene) {
     const hits = trialData.filter(trial => trial.response === 1).length;
     const hitRate = ((hits / trialData.length) * 100).toFixed(1);
     
-    // Prepare data for Google Forms
     const dataToSend = {
         finalThreshold: finalThreshold,
         thresholdSD: threshSD,
         totalTrials: trialData.length,
         hitRate: hitRate,
-        trialData: trialData
+        trialData: trialData,
+        timezoneName: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        localTimeString: new Date().toString(),
+        userAgent: navigator.userAgent,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height
     };
     
     // Send data to Google Forms
@@ -394,12 +442,18 @@ function sendDataToGoogleForms(data) {
     
     // Replace these with your actual Google Form field IDs (after removing timestamp field)
     const FIELD_IDS = {
-        finalThreshold: 'entry.1091417814', // Replace with actual ID
-        thresholdSD: 'entry.1415284933',    // Replace with actual ID
-        totalTrials: 'entry.1267844442',    // Replace with actual ID
-        hitRate: 'entry.1230961981',        // Replace with actual ID
-        trialData: 'entry.1381897488'       // Replace with actual ID
-        // Removed timestamp - Google Forms adds this automatically
+        finalThreshold: 'entry.1091417814',
+        thresholdSD: 'entry.1415284933',
+        totalTrials: 'entry.1267844442',
+        hitRate: 'entry.1230961981',
+        trialData: 'entry.1381897488',
+        timezoneName: 'entry.1114905384',
+        localTimeString: 'entry.403010357',
+        userAgent: 'entry.456929803',
+        windowWidth: 'entry.2000849841',
+        windowHeight: 'entry.1762072465',
+        screenWidth: 'entry.2111832145',
+        screenHeight: 'entry.431961030'
     };
     
     // Create form data
@@ -409,7 +463,13 @@ function sendDataToGoogleForms(data) {
     formData.append(FIELD_IDS.totalTrials, data.totalTrials.toString());
     formData.append(FIELD_IDS.hitRate, data.hitRate + '%');
     formData.append(FIELD_IDS.trialData, JSON.stringify(data.trialData));
-    // Removed timestamp - Google Forms adds this automatically
+    formData.append(FIELD_IDS.timezoneName, data.timezoneName);
+    formData.append(FIELD_IDS.localTimeString, data.localTimeString);
+    formData.append(FIELD_IDS.userAgent, data.userAgent);
+    formData.append(FIELD_IDS.windowWidth, data.windowWidth.toString());
+    formData.append(FIELD_IDS.windowHeight, data.windowHeight.toString());
+    formData.append(FIELD_IDS.screenWidth, data.screenWidth.toString());
+    formData.append(FIELD_IDS.screenHeight, data.screenHeight.toString());
     
     // Submit to Google Forms
     fetch(GOOGLE_FORM_URL, {
