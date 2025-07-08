@@ -3,73 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phaser Psychophysics Pong</title>
-    <!-- Retro Pong font from Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+    <title>Psychophysics Pong - Introduction</title>
     <style>
-        .font-preload { font-family: 'VT323', monospace; position: absolute; left: -9999px; visibility: hidden; }
         body {
-            background: #111;
-            color: #0f0;
-            font-family: 'Press Start 2P', monospace;
-            text-align: center;
+            background: #222;
+            color: #fff;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
+        }
+        .container {
+            background: #333;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            padding: 2.5rem 2rem 2rem 2rem;
+            max-width: 650px;
+            width: 90%;
+            text-align: center;
         }
         h1 {
-            color: #fff;
-            font-size: 2.2em;
-            margin-top: 32px;
-            letter-spacing: 2px;
-            text-shadow: 0 0 8px #0f0, 0 0 2px #fff;
-        }
-        h2 {
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
             color: #0f0;
-            font-size: 1.1em;
-            margin-bottom: 8px;
-            margin-top: 0;
-            text-shadow: 0 0 4px #fff;
         }
-        #game-container {
-            margin: 32px auto 0 auto;
-            width: 800px;
-            height: 600px;
-            border: 6px solid #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 32px #0f0, 0 0 8px #fff;
-            background: #222;
-            position: relative;
+        .intro-text {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            color: #eee;
         }
-        .instructions {
-            color: #fff;
-            font-size: 0.9em;
-            margin-top: 12px;
-            margin-bottom: 0;
-            text-shadow: 0 0 2px #0f0;
+        .smaller-text {
+            font-size: 0.85em;
+            color: #ccc;
+            margin: 1.5em 0;
         }
-        @media (max-width: 900px) {
-            #game-container {
-                width: 98vw;
-                height: 70vw;
-                max-width: 800px;
-                max-height: 600px;
-            }
+        .continue-btn {
+            background: #0f0;
+            color: #222;
+            border: none;
+            border-radius: 6px;
+            padding: 0.8rem 2.2rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .continue-btn:hover {
+            background: #0c0;
+        }
+        .platform-warning {
+            color: #ff0;
+            margin-top: 1.5rem;
+            font-size: 1rem;
+            display: none;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #444;
+            margin: 2em 0;
         }
     </style>
 </head>
 <body>
-    <span class="font-preload">.</span>
-    <h1>PSYCHOPHYSICS PONG</h1>
-    <h2>Retro Adaptive Threshold Game</h2>
-    <div id="game-container"></div>
-    <div class="instructions">
-        <p><br>Use &larr; and &rarr; to move the paddle and hit the ball!<br><br>
-        The ball gets harder to see as you succeed!</p>
+    <div class="container">
+        <h1>Psychophysics Pong</h1>
+        <div class="intro-text" id="intro-text">
+            <strong>Play a game of PONG and test your visual sensitivity!</strong><br><br>
+            By playing this game, we're aiming to test your visual system's sensitivity to brightness differences, especially in low-contrast situations. We're trying to measure something called a luminance contrast threshold.<br><br>
+            Imagine looking at a light grey object on a slightly lighter grey background. If the two greys are very close, they might blend together and be hard to see. The luminance contrast threshold is the smallest brightness difference between that object and its background that your eyes can still detect.
+            <hr>
+            <div class="smaller-text">
+                The luminance contrast threshold is crucial in everyday vision because it affects how well we see edges, shapes, objects, and text—especially in low-light or low-contrast situations. Here's why it matters:<br><br>
+                <ol style="text-align:left; max-width: 600px; margin: 0 auto 1.5em auto; font-size: 0.9em;">
+                    <li><strong>Reading</strong><br>
+                    You rely on luminance contrast to tell letters apart from the background. If the contrast is too low (like gray text on a slightly lighter gray page), it becomes harder to read, especially for older adults or people with visual impairments.</li><br>
+                    <li><strong>Driving</strong><br>
+                    At night or in fog, the contrast between objects (like a pedestrian or another car) and the background drops. A good contrast threshold means you're more likely to spot hazards in time. Poor contrast sensitivity = higher accident risk.</li><br>
+                    <li><strong>Recognizing Faces and Objects</strong><br>
+                    Many real-world objects don't have sharp color differences—your ability to detect subtle shading or shadows (which is contrast) helps you recognize faces, steps, curbs, and more.</li><br>
+                    <li><strong>Low Light Conditions</strong><br>
+                    In dim lighting, colors fade, but you can still rely on brightness differences. Contrast sensitivity helps you navigate a dark room without bumping into furniture.</li><br>
+                    <li><strong>Aging and Eye Health</strong><br>
+                    As people age or develop conditions like cataracts, glaucoma, or macular degeneration, contrast sensitivity often declines—even if visual acuity (clarity) remains okay. That's why some people with "20/20" vision still struggle with night driving or reading faint print.</li>
+                </ol>
+                In short: while standard eye tests check how sharp your vision is (acuity), contrast threshold testing checks how useful your vision is in the real world.
+            </div>
+            <hr>
+            <em>Note: This test provides a general estimate of your luminance contrast sensitivity. In clinical and research settings, these measurements are typically taken under strictly controlled lighting and display conditions using calibrated equipment. Because web-based tests are influenced by factors like screen brightness, display quality, and ambient lighting, your results may not precisely reflect clinical thresholds.</em><br><br>
+            However, by participating, you'll be able to compare your performance to a large and growing dataset of other users, giving you a sense of where your vision falls relative to the general population. While not diagnostic, this comparison can still offer useful insight into your everyday visual function.
+            <hr>
+        </div>
+        <button class="continue-btn" id="continue-btn">Continue</button>
+        <div class="platform-warning" id="platform-warning"></div>
     </div>
-    <script src="numeric.js"></script>
-    <script src="jsQUEST.js"></script>
-    <script src="main.js"></script>
+    <script>
+        function isMobile() {
+            // Simple user agent check for mobile devices
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        document.getElementById('continue-btn').addEventListener('click', function() {
+            if (isMobile()) {
+                window.location.href = 'mobile.html';
+            } else {
+                window.location.href = 'main.html';
+            }
+        });
+
+        // Optionally, show a warning if on mobile
+        window.addEventListener('DOMContentLoaded', function() {
+            if (isMobile()) {
+                document.getElementById('platform-warning').style.display = 'block';
+                document.getElementById('platform-warning').textContent =
+                    'You appear to be using a mobile device. You will be redirected to a mobile-optimized version.';
+            }
+        });
+    </script>
 </body>
-</html>
+</html> 
