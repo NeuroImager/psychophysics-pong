@@ -6,13 +6,29 @@
 // The QUEST algorithm adaptively adjusts contrast based on player performance.
 
 // ============================================================================
-//  GAME CONFIGURATION
+//  PLATFORM DETECTION & CONFIGURATION
 // ============================================================================
+// Detect if running on mobile.html (by checking for mobile controls or URL)
+const isMobile = !!document.getElementById('left-btn') && !!document.getElementById('right-btn');
+
+// Responsive game area configuration
+let gameWidth, gameHeight;
+if (isMobile) {
+    // Use the smaller of window.innerWidth-24 and 600, and window.innerHeight-200 and 800, to match CSS
+    gameWidth = Math.min(window.innerWidth - 24, 600);
+    gameHeight = Math.min(window.innerHeight - 200, 800);
+    console.log('[PONG] Phaser config: gameWidth =', gameWidth, 'gameHeight =', gameHeight);
+} else {
+    gameWidth = 800;
+    gameHeight = 600;
+    console.log('[PONG] Phaser config: gameWidth =', gameWidth, 'gameHeight =', gameHeight);
+}
+
 // Phaser.js game configuration object
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: gameWidth,
+    height: gameHeight,
     backgroundColor: 0x888888, // mid-gray background
     parent: 'game-container',
     scene: {
@@ -49,6 +65,10 @@ let currentLogContrast = 0;
 let gameStarted = false;
 let countdownText;
 let startText;
+
+// Mobile input flags
+let moveLeft = false;
+let moveRight = false;
 
 // ============================================================================
 //  QUEST ALGORITHM FUNCTIONS
@@ -159,13 +179,22 @@ function preload() {
 
 // Called once when the scene starts - create game objects
 function create() {
+    const scene = this; // Capture Phaser scene context
     setupQuest();
     // Paddle (bottom, horizontal)
-    paddle = this.add.rectangle(400, 570, 120, 20, 0xffffff);
-    this.physics.add.existing(paddle, true);
+    paddle = scene.add.rectangle(
+        config.width / 2,
+        isMobile ? config.height - 40 : 570,
+        120, 20, 0xffffff
+    );
+    scene.physics.add.existing(paddle, true);
 
     // Ball as a physics image with Gaussian texture
-    ball = this.physics.add.image(400, 300, 'ballTex');
+    ball = scene.physics.add.image(
+        config.width / 2,
+        config.height / 2,
+        'ballTex'
+    );
     ball.setDisplaySize(40, 40);
     ball.setOrigin(0.5, 0.5);
     ball.setBounce(1, 1);
@@ -176,7 +205,8 @@ function create() {
     paddle.visible = false;
 
     // Start text
-    startText = this.add.text(400, 300, 'Press S to Start', {
+    startText = scene.add.text(
+        config.width / 2, config.height / 2, isMobile ? 'Tap to Start' : 'Press S to Start', {
         fontFamily: 'VT323',
         fontSize: '48px',
         color: '#fff',
@@ -187,7 +217,8 @@ function create() {
     }).setOrigin(0.5);
 
     // Countdown text (hidden initially)
-    countdownText = this.add.text(400, 300, '', {
+    countdownText = scene.add.text(
+        config.width / 2, config.height / 2, '', {
         fontFamily: 'VT323',
         fontSize: '48px',
         color: '#fff',
@@ -199,18 +230,60 @@ function create() {
     countdownText.setVisible(false);
 
     // Ring graphics (for cue)
-    ringGraphics = this.add.graphics();
+    ringGraphics = scene.add.graphics();
     ringGraphics.setDepth(1);
     ringGraphics.visible = false;
 
     // Input
-    cursors = this.input.keyboard.createCursorKeys();
-    this.input.keyboard.on('keydown-S', () => {
-        if (!gameStarted) {
-            startText.setVisible(false);
-            startCountdown(this);
+    if (isMobile) {
+        // Touch controls
+        const leftBtn = document.getElementById('left-btn');
+        const rightBtn = document.getElementById('right-btn');
+        // Touch/Pointer events for left button
+        leftBtn.addEventListener('touchstart', e => { e.preventDefault(); moveLeft = true; });
+        leftBtn.addEventListener('touchend', e => { e.preventDefault(); moveLeft = false; });
+        leftBtn.addEventListener('mousedown', e => { e.preventDefault(); moveLeft = true; });
+        leftBtn.addEventListener('mouseup', e => { e.preventDefault(); moveLeft = false; });
+        leftBtn.addEventListener('mouseleave', e => { moveLeft = false; });
+        // Touch/Pointer events for right button
+        rightBtn.addEventListener('touchstart', e => { e.preventDefault(); moveRight = true; });
+        rightBtn.addEventListener('touchend', e => { e.preventDefault(); moveRight = false; });
+        rightBtn.addEventListener('mousedown', e => { e.preventDefault(); moveRight = true; });
+        rightBtn.addEventListener('mouseup', e => { e.preventDefault(); moveRight = false; });
+        rightBtn.addEventListener('mouseleave', e => { moveRight = false; });
+        // Tap anywhere to start (Phaser pointer event)
+        scene.input.on('pointerdown', () => {
+            if (!gameStarted) {
+                startText.setVisible(false);
+                startCountdown(scene);
+            }
+        });
+        // Fallback: DOM event on #game-container
+        const gameDiv = document.getElementById('game-container');
+        if (gameDiv) {
+            gameDiv.addEventListener('touchstart', () => {
+                if (!gameStarted) {
+                    startText.setVisible(false);
+                    startCountdown(scene);
+                }
+            }, { passive: true });
+            gameDiv.addEventListener('mousedown', () => {
+                if (!gameStarted) {
+                    startText.setVisible(false);
+                    startCountdown(scene);
+                }
+            });
         }
-    });
+    } else {
+        // Keyboard controls
+        cursors = scene.input.keyboard.createCursorKeys();
+        scene.input.keyboard.on('keydown-S', () => {
+            if (!gameStarted) {
+                startText.setVisible(false);
+                startCountdown(scene);
+            }
+        });
+    }
 
     // Collisions
     this.physics.add.collider(ball, paddle, () => {
@@ -223,12 +296,12 @@ function create() {
             contrast: ballContrast,
             response: 1 // Hit
         });
-        updateBallAppearance(this);
+        updateBallAppearance(scene);
         playBip(880);
         ball.setVelocityY(-Math.abs(ball.body.velocity.y));
         
         if (trialCount >= MAX_TRIALS) {
-            endGame(this);
+            endGame(scene);
         }
     });
 
@@ -244,11 +317,11 @@ function create() {
                     contrast: ballContrast,
                     response: 0 // Miss
                 });
-                updateBallAppearance(this);
+                updateBallAppearance(scene);
                 playBip(220);
                 ballReady = false;
                 ball.setVelocity(0, 0); // Stop the ball
-                ball.setPosition(400, 300); // Center the ball
+                ball.setPosition(config.width / 2, config.height / 2); // Center the ball
                 ball.body.enable = false; // Freeze physics
                 showRingCue();
                 ball.setVisible(true); // Ensure ball is visible in the ring
@@ -257,32 +330,47 @@ function create() {
                         ringGraphics.clear();
                         ringGraphics.visible = false;
                         ball.body.enable = true; // Unfreeze physics
-                        serveBall(this, true); // Set velocity
+                        serveBall(scene, true); // Set velocity
                         ballReady = true;
                     }
                 });
                 
                 if (trialCount >= MAX_TRIALS) {
-                    endGame(this);
+                    endGame(scene);
                 }
             }
         }
     }, this);
 
     // Score/contrast display
-    scoreText = this.add.text(20, 20, 'Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'), { fontSize: '12px', fill: '#fff' });
+    scoreText = this.add.text(
+        20, 20,
+        'Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'),
+        { fontSize: '12px', fill: '#fff' }
+    );
     scoreText.setVisible(false);
 }
 
 // Called every frame - handle game logic
 function update(time, delta) {
     if (!gameStarted || gameCompleted) return;
-    if (cursors.left.isDown) {
-        paddle.x -= 7;
-    } else if (cursors.right.isDown) {
-        paddle.x += 7;
+    // Input handling
+    if (isMobile) {
+        if (moveLeft) {
+            paddle.x -= 7;
+        } else if (moveRight) {
+            paddle.x += 7;
+        }
+        // Clamp paddle to game area
+        paddle.x = Phaser.Math.Clamp(paddle.x, 60, config.width - 60);
+    } else {
+        if (cursors.left.isDown) {
+            paddle.x -= 7;
+        } else if (cursors.right.isDown) {
+            paddle.x += 7;
+        }
+        paddle.x = Phaser.Math.Clamp(paddle.x, 60, 800 - 60);
     }
-    paddle.x = Phaser.Math.Clamp(paddle.x, 60, 800 - 60);
     paddle.body.updateFromGameObject();
     scoreText.setText('Trial: ' + trialCount + '/' + MAX_TRIALS + ' | Contrast: ' + (typeof ballContrast === 'number' && !isNaN(ballContrast) ? ballContrast.toFixed(2) : 'N/A'));
 }
@@ -324,7 +412,7 @@ function serveBall(scene, onlySetVelocity = false) {
     if (!onlySetVelocity) {
         ballContrast = getNextContrast();
         updateBallAppearance(scene);
-        ball.setPosition(400, 300);
+        ball.setPosition(config.width / 2, config.height / 2);
         ball.setVisible(true);
     }
     const baseVx = 260;
@@ -350,7 +438,7 @@ function updateBallAppearance(scene) {
 function showRingCue() {
     ringGraphics.clear();
     ringGraphics.lineStyle(1, 0x000000, 1);
-    ringGraphics.strokeCircle(400, 300, 24);
+    ringGraphics.strokeCircle(config.width / 2, config.height / 2, 24);
     ringGraphics.visible = true;
 }
 
@@ -404,7 +492,7 @@ function endGame(scene) {
     // Send data to Google Forms
     sendDataToGoogleForms(dataToSend);
     
-    const completionText = scene.add.text(400, 300, 'Game Complete!\n\nFinal threshold estimate:\n' + finalThreshold + ' ± ' + threshSD, {
+    const completionText = scene.add.text(config.width / 2, config.height / 2, 'Game Complete!\n\nFinal threshold estimate:\n' + finalThreshold + ' ± ' + threshSD, {
         fontFamily: 'VT323',
         fontSize: '32px',
         color: '#fff',
@@ -415,7 +503,7 @@ function endGame(scene) {
     }).setOrigin(0.5);
     
     // Add button to view results
-    const resultsButton = scene.add.text(400, 400, 'View Results', {
+    const resultsButton = scene.add.text(config.width / 2, config.height / 2 + 100, 'View Results', {
         fontFamily: 'VT323',
         fontSize: '24px',
         color: '#0f0',
